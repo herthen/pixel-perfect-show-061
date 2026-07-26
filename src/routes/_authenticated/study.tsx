@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -44,7 +44,7 @@ const DEFAULT_EF = 2.5;
 
 function StudyPage() {
   const qc = useQueryClient();
-  const { mode } = useSearch({ from: "/study" });
+  const { mode } = Route.useSearch();
   const freePractice = mode === "free";
   const [queue, setQueue] = useState<Card[]>([]);
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
