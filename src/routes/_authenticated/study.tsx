@@ -1,9 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { z } from "zod";
 import { ArrowLeft, Check, X, Volume2 } from "lucide-react";
 import {
+  buildFreePracticeQueue,
   buildStudyQueue,
   type ProgressRow,
   type WordRow,
@@ -17,8 +19,13 @@ import {
 } from "@/lib/srs";
 import { playChinese } from "@/lib/audio";
 
+const studySearch = z.object({
+  mode: z.enum(["free"]).optional(),
+});
+
 export const Route = createFileRoute("/_authenticated/study")({
   ssr: false,
+  validateSearch: studySearch,
   component: StudyPage,
 });
 
@@ -37,6 +44,8 @@ const DEFAULT_EF = 2.5;
 
 function StudyPage() {
   const qc = useQueryClient();
+  const { mode } = useSearch({ from: "/study" });
+  const freePractice = mode === "free";
   const [queue, setQueue] = useState<Card[]>([]);
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
   const [audioSpeed, setAudioSpeed] = useState(0.85);
@@ -47,7 +56,7 @@ function StudyPage() {
   useEffect(() => {
     (async () => {
       const [{ cards }, settings] = await Promise.all([
-        buildStudyQueue(),
+        freePractice ? buildFreePracticeQueue() : buildStudyQueue(),
         supabase.from("user_settings").select("preferred_audio_speed").maybeSingle(),
       ]);
       setAudioSpeed(settings.data?.preferred_audio_speed ?? 0.85);
@@ -55,14 +64,15 @@ function StudyPage() {
         setPhase({ name: "empty" });
         return;
       }
-      // Create session
-      const user = (await supabase.auth.getUser()).data.user!;
-      const { data: session } = await supabase
-        .from("study_sessions")
-        .insert({ started_at: startedAtRef.current, user_id: user.id })
-        .select("id")
-        .single();
-      sessionIdRef.current = session?.id ?? null;
+      if (!freePractice) {
+        const user = (await supabase.auth.getUser()).data.user!;
+        const { data: session } = await supabase
+          .from("study_sessions")
+          .insert({ started_at: startedAtRef.current, user_id: user.id })
+          .select("id")
+          .single();
+        sessionIdRef.current = session?.id ?? null;
+      }
       setQueue(cards);
       setPhase({ name: "prompt", card: cards[0], index: 0 });
     })().catch((e) => {
@@ -70,7 +80,7 @@ function StudyPage() {
       toast.error("Couldn't load your session");
       setPhase({ name: "empty" });
     });
-  }, []);
+  }, [freePractice]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -147,33 +157,33 @@ function StudyPage() {
     };
     const next = schedule(current, rating);
 
-    // Optimistic stats
     statsRef.current.total += 1;
     if (rating === "good" || rating === "easy") statsRef.current.correct += 1;
     if (isNew) statsRef.current.newWords += 1;
     else statsRef.current.reviews += 1;
 
-    // Upsert
-    const user = (await supabase.auth.getUser()).data.user!;
-    const { error } = await supabase.from("user_word_progress").upsert(
-      {
-        user_id: user.id,
-        word_id: card.id,
-        ease_factor: next.ease_factor,
-        interval_days: next.interval_days,
-        repetitions: next.repetitions,
-        status: next.status,
-        due_at: next.due_at,
-        last_reviewed_at: new Date().toISOString(),
-        review_count: (card.progress?.review_count ?? 0) + 1,
-        correct_count:
-          (card.progress?.correct_count ?? 0) + (rating === "good" || rating === "easy" ? 1 : 0),
-        incorrect_count:
-          (card.progress?.incorrect_count ?? 0) + (rating === "again" ? 1 : 0),
-      },
-      { onConflict: "user_id,word_id" },
-    );
-    if (error) console.error(error);
+    if (!freePractice) {
+      const user = (await supabase.auth.getUser()).data.user!;
+      const { error } = await supabase.from("user_word_progress").upsert(
+        {
+          user_id: user.id,
+          word_id: card.id,
+          ease_factor: next.ease_factor,
+          interval_days: next.interval_days,
+          repetitions: next.repetitions,
+          status: next.status,
+          due_at: next.due_at,
+          last_reviewed_at: new Date().toISOString(),
+          review_count: (card.progress?.review_count ?? 0) + 1,
+          correct_count:
+            (card.progress?.correct_count ?? 0) + (rating === "good" || rating === "easy" ? 1 : 0),
+          incorrect_count:
+            (card.progress?.incorrect_count ?? 0) + (rating === "again" ? 1 : 0),
+        },
+        { onConflict: "user_id,word_id" },
+      );
+      if (error) console.error(error);
+    }
 
     const nextIndex = index + 1;
     if (nextIndex >= queue.length) {
@@ -190,7 +200,7 @@ function StudyPage() {
           })
           .eq("id", sessionIdRef.current);
       }
-      qc.invalidateQueries();
+      if (!freePractice) qc.invalidateQueries();
       setPhase({
         name: "done",
         summary: {
@@ -233,6 +243,12 @@ function StudyPage() {
             className="h-full bg-cinnabar transition-[width] duration-300"
             style={{ width: `${(progress.current / progress.total) * 100}%` }}
           />
+        </div>
+      )}
+
+      {freePractice && (
+        <div className="mt-4 rounded-lg border border-dashed border-border bg-surface p-4 text-sm text-muted-foreground">
+          Free practice mode — this session will not update your spaced repetition progress.
         </div>
       )}
 

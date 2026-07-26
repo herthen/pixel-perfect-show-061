@@ -143,6 +143,38 @@ export async function buildStudyQueue(): Promise<{
   };
 }
 
+export async function buildFreePracticeQueue(): Promise<{
+  cards: (WordRow & { progress: ProgressRow | null })[];
+}> {
+  const [{ data: settings }, { data: progress }] = await Promise.all([
+    supabase.from("user_settings").select("*").maybeSingle(),
+    supabase.from("user_word_progress").select("*"),
+  ]);
+
+  const defaultListId = settings?.default_list_id ?? null;
+  const progressByWord = new Map((progress ?? []).map((p) => [p.word_id, p as ProgressRow]));
+
+  let words: WordRow[] = [];
+  if (defaultListId) {
+    const { data } = await supabase
+      .from("word_lists")
+      .select("position, words(*)")
+      .eq("list_id", defaultListId)
+      .order("position");
+    words = (data ?? []).map((row) => row.words as unknown as WordRow).filter(Boolean);
+  } else {
+    const { data } = await supabase.from("words").select("*").order("simplified");
+    words = data ?? [];
+  }
+
+  return {
+    cards: words.map((word) => ({
+      ...word,
+      progress: progressByWord.get(word.id) ?? null,
+    })),
+  };
+}
+
 export function computeStreak(sessions: Pick<SessionRow, "started_at" | "completed_at">[]): number {
   if (!sessions.length) return 0;
   const days = new Set(

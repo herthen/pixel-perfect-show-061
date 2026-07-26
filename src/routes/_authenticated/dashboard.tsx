@@ -121,7 +121,7 @@ function Dashboard() {
           <Sparkles className="mt-0.5 h-4 w-4 text-cinnabar" />
           <p>
             You've met your daily new-word target. Rest, or head into{" "}
-            <Link to="/study" className="text-cinnabar underline-offset-4 hover:underline">
+            <Link to="/study?mode=free" className="text-cinnabar underline-offset-4 hover:underline">
               free practice
             </Link>{" "}
             to review at your own pace.
