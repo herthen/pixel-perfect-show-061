@@ -119,14 +119,23 @@ export async function buildStudyQueue(): Promise<{
         .order("position");
       newWords = (data ?? [])
         .map((r) => r.words as unknown as WordRow)
-        .filter((w) => w && !seenIds.has(w.id))
-        .slice(0, remainingNew);
+        .filter((w) => w && !seenIds.has(w.id));
+      for (let i = newWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newWords[i], newWords[j]] = [newWords[j], newWords[i]];
+      }
+      newWords = newWords.slice(0, remainingNew);
     } else {
       const { data } = await supabase
         .from("words")
         .select("*")
         .limit(remainingNew * 3);
-      newWords = (data ?? []).filter((w) => !seenIds.has(w.id)).slice(0, remainingNew);
+      newWords = (data ?? []).filter((w) => !seenIds.has(w.id));
+      for (let i = newWords.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newWords[i], newWords[j]] = [newWords[j], newWords[i]];
+      }
+      newWords = newWords.slice(0, remainingNew);
     }
   }
 

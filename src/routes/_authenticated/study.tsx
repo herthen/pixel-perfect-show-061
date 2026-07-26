@@ -31,9 +31,12 @@ export const Route = createFileRoute("/_authenticated/study")({
 
 type Card = WordRow & { progress: ProgressRow | null };
 
+type QueueItem = { type: "quiz" | "intro"; card: Card };
+
 type Phase =
   | { name: "loading" }
   | { name: "empty" }
+  | { name: "introduce"; card: Card; index: number }
   | { name: "prompt"; card: Card; index: number }
   | { name: "pronounce"; card: Card; index: number }
   | { name: "meaning"; card: Card; index: number; pronunciation: "known" | "unknown" }
@@ -46,7 +49,7 @@ function StudyPage() {
   const qc = useQueryClient();
   const { mode } = Route.useSearch();
   const freePractice = mode === "free";
-  const [queue, setQueue] = useState<Card[]>([]);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
   const [audioSpeed, setAudioSpeed] = useState(0.85);
   const sessionIdRef = useRef<string | null>(null);
@@ -55,15 +58,32 @@ function StudyPage() {
 
   useEffect(() => {
     (async () => {
-      const [{ cards }, settings] = await Promise.all([
+      const [queueResult, settings] = await Promise.all([
         freePractice ? buildFreePracticeQueue() : buildStudyQueue(),
         supabase.from("user_settings").select("preferred_audio_speed").maybeSingle(),
       ]);
       setAudioSpeed(settings.data?.preferred_audio_speed ?? 0.85);
+      const { cards } = queueResult;
       if (cards.length === 0) {
         setPhase({ name: "empty" });
         return;
       }
+
+      let items: QueueItem[];
+      if (freePractice) {
+        items = cards.map((c) => ({ type: "quiz" as const, card: c }));
+      } else {
+        const reviewsDue = "reviewsDue" in queueResult ? queueResult.reviewsDue : 0;
+        const reviewCards = cards.slice(0, reviewsDue);
+        const newCards = cards.slice(reviewsDue);
+        items = reviewCards.map((c) => ({ type: "quiz" as const, card: c }));
+        for (let i = 0; i < newCards.length; i += 3) {
+          const batch = newCards.slice(i, i + 3);
+          batch.forEach((c) => items.push({ type: "intro" as const, card: c }));
+          batch.forEach((c) => items.push({ type: "quiz" as const, card: c }));
+        }
+      }
+
       if (!freePractice) {
         const user = (await supabase.auth.getUser()).data.user!;
         const { data: session } = await supabase
@@ -73,8 +93,14 @@ function StudyPage() {
           .single();
         sessionIdRef.current = session?.id ?? null;
       }
-      setQueue(cards);
-      setPhase({ name: "prompt", card: cards[0], index: 0 });
+
+      setQueue(items);
+      const first = items[0];
+      setPhase(
+        first.type === "intro"
+          ? { name: "introduce", card: first.card, index: 0 }
+          : { name: "prompt", card: first.card, index: 0 }
+      );
     })().catch((e) => {
       console.error(e);
       toast.error("Couldn't load your session");
@@ -87,7 +113,12 @@ function StudyPage() {
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const p = phase;
-      if (p.name === "prompt") {
+      if (p.name === "introduce") {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          advanceIntro(p.index);
+        }
+      } else if (p.name === "prompt") {
         if (e.key === " " || e.key === "Enter") {
           e.preventDefault();
           setPhase({ name: "pronounce", card: p.card, index: p.index });
@@ -135,12 +166,22 @@ function StudyPage() {
   function answerMeaning(p: Extract<Phase, { name: "meaning" }>, ans: "known" | "unknown") {
     const assessment: AssessmentResult = { pronunciation: p.pronunciation, meaning: ans };
     setPhase({ name: "reference", card: p.card, index: p.index, assessment });
-    // Auto-play once you see the reference
     playChinese({
       text: p.card.simplified,
       audioUrl: p.card.audio_url,
       rate: audioSpeed,
     });
+  }
+
+  function advanceIntro(index: number) {
+    const nextIndex = index + 1;
+    if (nextIndex >= queue.length) return;
+    const item = queue[nextIndex];
+    setPhase(
+      item.type === "intro"
+        ? { name: "introduce", card: item.card, index: nextIndex }
+        : { name: "prompt", card: item.card, index: nextIndex }
+    );
   }
 
   async function advance() {
@@ -187,7 +228,6 @@ function StudyPage() {
 
     const nextIndex = index + 1;
     if (nextIndex >= queue.length) {
-      // Complete session
       if (sessionIdRef.current) {
         await supabase
           .from("study_sessions")
@@ -210,12 +250,23 @@ function StudyPage() {
         },
       });
     } else {
-      setPhase({ name: "prompt", card: queue[nextIndex], index: nextIndex });
+      const nextItem = queue[nextIndex];
+      setPhase(
+        nextItem.type === "intro"
+          ? { name: "introduce", card: nextItem.card, index: nextIndex }
+          : { name: "prompt", card: nextItem.card, index: nextIndex }
+      );
     }
   }
 
   const progress = useMemo(() => {
-    if (phase.name === "prompt" || phase.name === "pronounce" || phase.name === "meaning" || phase.name === "reference") {
+    if (
+      phase.name === "introduce" ||
+      phase.name === "prompt" ||
+      phase.name === "pronounce" ||
+      phase.name === "meaning" ||
+      phase.name === "reference"
+    ) {
       return { current: phase.index + 1, total: queue.length };
     }
     return null;
@@ -261,6 +312,14 @@ function StudyPage() {
 
         {phase.name === "empty" && <EmptyState />}
 
+        {phase.name === "introduce" && (
+          <IntroStep
+            card={phase.card}
+            audioSpeed={audioSpeed}
+            onNext={() => advanceIntro(phase.index)}
+          />
+        )}
+
         {phase.name === "prompt" && (
           <PromptStep
             card={phase.card}
@@ -292,7 +351,13 @@ function StudyPage() {
         )}
 
         {phase.name === "reference" && (
-          <ReferenceStep card={phase.card} onNext={advance} audioSpeed={audioSpeed} assessment={phase.assessment} freePractice={freePractice} />
+          <ReferenceStep
+            card={phase.card}
+            onNext={advance}
+            audioSpeed={audioSpeed}
+            assessment={phase.assessment}
+            freePractice={freePractice}
+          />
         )}
 
         {phase.name === "done" && <DoneStep summary={phase.summary} freePractice={freePractice} />}
@@ -327,7 +392,86 @@ function EmptyState() {
   );
 }
 
-function PromptStep({ card, freePractice, onReveal }: { card: Card; freePractice: boolean; onReveal: () => void }) {
+function IntroStep({
+  card,
+  audioSpeed,
+  onNext,
+}: {
+  card: Card;
+  audioSpeed: number;
+  onNext: () => void;
+}) {
+  useEffect(() => {
+    playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed });
+  }, [card.id]);
+
+  return (
+    <div>
+      <div className="rounded-lg border border-cinnabar/20 bg-surface p-8 md:p-10">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.16em] text-cinnabar">New word</div>
+            <div className="mt-3 font-cjk text-[6rem] leading-none text-foreground md:text-[7rem]">
+              {card.simplified}
+            </div>
+          </div>
+          <button
+            onClick={() =>
+              playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed })
+            }
+            className="rounded-md border border-border bg-background p-2 text-muted-foreground hover:text-foreground"
+            aria-label="Play audio"
+          >
+            <Volume2 className="h-5 w-5" />
+          </button>
+        </div>
+
+        <dl className="mt-8 space-y-4 text-sm">
+          <Field label="Pinyin">
+            <span className="font-serif text-lg italic text-cinnabar">{card.pinyin}</span>
+          </Field>
+          <Field label="Meaning">
+            <span className="font-serif text-lg text-foreground">{card.english_meaning}</span>
+          </Field>
+          {card.part_of_speech && <Field label="Part of speech">{card.part_of_speech}</Field>}
+          {card.example_sentence && (
+            <Field label="Example">
+              <div className="space-y-1">
+                <div className="font-cjk text-base text-foreground">{card.example_sentence}</div>
+                {card.example_translation && (
+                  <div className="text-muted-foreground">{card.example_translation}</div>
+                )}
+              </div>
+            </Field>
+          )}
+        </dl>
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Take a moment to study this word.{" "}
+          <kbd className="rounded border border-border px-1.5 py-0.5">Space</kbd> when ready.
+        </p>
+        <button
+          onClick={onNext}
+          className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+        >
+          Got it →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PromptStep({
+  card,
+  freePractice,
+  onReveal,
+}: {
+  card: Card;
+  freePractice: boolean;
+  onReveal: () => void;
+}) {
   return (
     <div className="flex flex-col items-center">
       <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -401,7 +545,6 @@ function QuestionStep({
 function RevealPinyin({ card, audioSpeed }: { card: Card; audioSpeed: number }) {
   useEffect(() => {
     playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed });
-     
   }, [card.id]);
   return (
     <div className="flex flex-col items-center">
@@ -513,14 +656,21 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function DoneStep({ summary, freePractice }: { summary: { correct: number; total: number; newWords: number }; freePractice: boolean }) {
+function DoneStep({
+  summary,
+  freePractice,
+}: {
+  summary: { correct: number; total: number; newWords: number };
+  freePractice: boolean;
+}) {
   const pct = summary.total ? Math.round((summary.correct / summary.total) * 100) : 0;
   return (
     <div className="rounded-lg border border-border bg-surface p-10 text-center">
       <div className="mx-auto mb-4 ink-mark" />
       <h2 className="font-serif text-3xl">Session complete</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        {summary.total} card{summary.total === 1 ? "" : "s"} reviewed{!freePractice && ` · ${summary.newWords} new`} · {pct}% confident
+        {summary.total} card{summary.total === 1 ? "" : "s"} reviewed
+        {!freePractice && ` · ${summary.newWords} new`} · {pct}% confident
       </p>
       <div className="mt-8 flex justify-center gap-3">
         <Link
