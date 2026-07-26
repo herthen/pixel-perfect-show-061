@@ -90,20 +90,20 @@ function StudyPage() {
           });
         }
       } else if (p.name === "pronounce") {
-        if (e.key === "1" || e.key.toLowerCase() === "n") {
+        if (e.key === "1" || e.key === "ArrowLeft" || e.key.toLowerCase() === "n") {
           e.preventDefault();
           answerPronunciation(p, "unknown");
         }
-        if (e.key === "2" || e.key.toLowerCase() === "y" || e.key === "Enter") {
+        if (e.key === "2" || e.key === "ArrowRight" || e.key.toLowerCase() === "y" || e.key === "Enter") {
           e.preventDefault();
           answerPronunciation(p, "known");
         }
       } else if (p.name === "meaning") {
-        if (e.key === "1" || e.key.toLowerCase() === "n") {
+        if (e.key === "1" || e.key === "ArrowLeft" || e.key.toLowerCase() === "n") {
           e.preventDefault();
           answerMeaning(p, "unknown");
         }
-        if (e.key === "2" || e.key.toLowerCase() === "y" || e.key === "Enter") {
+        if (e.key === "2" || e.key === "ArrowRight" || e.key.toLowerCase() === "y" || e.key === "Enter") {
           e.preventDefault();
           answerMeaning(p, "known");
         }
@@ -374,8 +374,8 @@ function QuestionStep({
         </button>
       </div>
       <p className="mt-3 text-[11px] text-muted-foreground/70">
-        <kbd className="rounded border border-border px-1.5 py-0.5">1</kbd> not yet ·{" "}
-        <kbd className="rounded border border-border px-1.5 py-0.5">2</kbd> know it
+        <kbd className="rounded border border-border px-1.5 py-0.5">←</kbd> not yet ·{" "}
+        <kbd className="rounded border border-border px-1.5 py-0.5">→</kbd> know it
       </p>
     </div>
   );
