@@ -78,7 +78,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Inkstone Chinese — Daily Mandarin flashcards" },
+      { title: "Inkstone Chinese" },
       {
         name: "description",
         content:
@@ -93,6 +93,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Inkstone Chinese" },
+      { name: "twitter:description", content: "A calm way to study Mandarin. Learn a few new words every day and let spaced repetition bring them back." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1e709117-2864-4690-8e1c-f1ed4a1f51aa/id-preview-511e0c64--0e8b07a0-1d99-4518-bc69-2fb4af6737dd.lovable.app-1785066085535.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/1e709117-2864-4690-8e1c-f1ed4a1f51aa/id-preview-511e0c64--0e8b07a0-1d99-4518-bc69-2fb4af6737dd.lovable.app-1785066085535.png" },
     ],
     links: [
       {
