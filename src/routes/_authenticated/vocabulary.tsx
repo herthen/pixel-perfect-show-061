@@ -46,7 +46,7 @@ function VocabularyPage() {
         w.simplified.includes(q) ||
         (w.traditional ?? "").includes(q) ||
         w.pinyin.toLowerCase().includes(q) ||
-        w.meaning.toLowerCase().includes(q)
+        w.english_meaning.toLowerCase().includes(q)
       );
     });
   }, [words, progressByWord, filter, query]);
@@ -118,10 +118,10 @@ function VocabularyPage() {
                 <div className="font-cjk text-2xl text-foreground">{w.simplified}</div>
                 <div className="hidden font-serif italic text-cinnabar md:block">{w.pinyin}</div>
                 <div className="md:hidden">
-                  <div className="text-sm text-foreground">{w.meaning}</div>
+                  <div className="text-sm text-foreground">{w.english_meaning}</div>
                   <div className="mt-0.5 text-xs italic text-cinnabar">{w.pinyin}</div>
                 </div>
-                <div className="hidden text-sm text-foreground md:block">{w.meaning}</div>
+                <div className="hidden text-sm text-foreground md:block">{w.english_meaning}</div>
                 <div className="hidden md:block">
                   <StatusPill status={status as string} />
                 </div>

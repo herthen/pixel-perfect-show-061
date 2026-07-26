@@ -450,7 +450,7 @@ function ReferenceStep({
             <span className="font-serif text-lg italic text-cinnabar">{card.pinyin}</span>
           </Field>
           <Field label="Meaning">
-            <span className="font-serif text-lg text-foreground">{card.meaning}</span>
+            <span className="font-serif text-lg text-foreground">{card.english_meaning}</span>
           </Field>
           {card.part_of_speech && <Field label="Part of speech">{card.part_of_speech}</Field>}
           {card.hsk_level && <Field label="HSK level">Level {card.hsk_level}</Field>}
