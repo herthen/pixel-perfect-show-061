@@ -23,7 +23,7 @@ function Dashboard() {
   const todayKey = new Date().toISOString().slice(0, 10);
   const todaysSessions = sessions.filter((s) => s.started_at.slice(0, 10) === todayKey);
   const newToday = todaysSessions.reduce((sum, s) => sum + (s.new_words_count ?? 0), 0);
-  const reviewsToday = todaysSessions.reduce((sum, s) => sum + (s.reviews_count ?? 0), 0);
+  const reviewsToday = todaysSessions.reduce((sum, s) => sum + ((s.reviewed_words_count ?? 0) - (s.new_words_count ?? 0)), 0);
   const streak = computeStreak(sessions);
 
   const now = new Date().toISOString();

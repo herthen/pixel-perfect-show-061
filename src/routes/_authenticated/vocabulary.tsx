@@ -44,7 +44,6 @@ function VocabularyPage() {
       if (!q) return true;
       return (
         w.simplified.includes(q) ||
-        (w.traditional ?? "").includes(q) ||
         w.pinyin.toLowerCase().includes(q) ||
         w.english_meaning.toLowerCase().includes(q)
       );

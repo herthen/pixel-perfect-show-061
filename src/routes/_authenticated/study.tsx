@@ -56,9 +56,10 @@ function StudyPage() {
         return;
       }
       // Create session
+      const user = (await supabase.auth.getUser()).data.user!;
       const { data: session } = await supabase
         .from("study_sessions")
-        .insert({ started_at: startedAtRef.current })
+        .insert({ started_at: startedAtRef.current, user_id: user.id })
         .select("id")
         .single();
       sessionIdRef.current = session?.id ?? null;
@@ -164,9 +165,11 @@ function StudyPage() {
         status: next.status,
         due_at: next.due_at,
         last_reviewed_at: new Date().toISOString(),
-        total_reviews: (card.progress?.total_reviews ?? 0) + 1,
-        correct_reviews:
-          (card.progress?.correct_reviews ?? 0) + (rating === "good" || rating === "easy" ? 1 : 0),
+        review_count: (card.progress?.review_count ?? 0) + 1,
+        correct_count:
+          (card.progress?.correct_count ?? 0) + (rating === "good" || rating === "easy" ? 1 : 0),
+        incorrect_count:
+          (card.progress?.incorrect_count ?? 0) + (rating === "again" ? 1 : 0),
       },
       { onConflict: "user_id,word_id" },
     );
@@ -180,10 +183,10 @@ function StudyPage() {
           .from("study_sessions")
           .update({
             completed_at: new Date().toISOString(),
-            cards_reviewed: statsRef.current.total,
+            reviewed_words_count: statsRef.current.total,
             correct_count: statsRef.current.correct,
+            incorrect_count: statsRef.current.total - statsRef.current.correct,
             new_words_count: statsRef.current.newWords,
-            reviews_count: statsRef.current.reviews,
           })
           .eq("id", sessionIdRef.current);
       }
@@ -428,11 +431,6 @@ function ReferenceStep({
             <div className="mt-3 font-cjk text-[6rem] leading-none text-foreground md:text-[7rem]">
               {card.simplified}
             </div>
-            {card.traditional && card.traditional !== card.simplified && (
-              <div className="mt-2 font-cjk text-2xl text-muted-foreground">
-                Traditional · {card.traditional}
-              </div>
-            )}
           </div>
           <button
             onClick={() =>
@@ -453,14 +451,10 @@ function ReferenceStep({
             <span className="font-serif text-lg text-foreground">{card.english_meaning}</span>
           </Field>
           {card.part_of_speech && <Field label="Part of speech">{card.part_of_speech}</Field>}
-          {card.hsk_level && <Field label="HSK level">Level {card.hsk_level}</Field>}
           {card.example_sentence && (
             <Field label="Example">
               <div className="space-y-1">
                 <div className="font-cjk text-base text-foreground">{card.example_sentence}</div>
-                {card.example_pinyin && (
-                  <div className="italic text-muted-foreground">{card.example_pinyin}</div>
-                )}
                 {card.example_translation && (
                   <div className="text-muted-foreground">{card.example_translation}</div>
                 )}

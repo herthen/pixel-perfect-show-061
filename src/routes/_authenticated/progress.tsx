@@ -39,7 +39,7 @@ function ProgressPage() {
       d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
       const day = sessions.filter((s) => s.started_at.slice(0, 10) === key);
-      const count = day.reduce((sum, s) => sum + (s.cards_reviewed ?? 0), 0);
+      const count = day.reduce((sum, s) => sum + (s.reviewed_words_count ?? 0), 0);
       const correct = day.reduce((sum, s) => sum + (s.correct_count ?? 0), 0);
       days.push({ date: key, count, correct });
     }
@@ -48,7 +48,7 @@ function ProgressPage() {
 
   const max = Math.max(1, ...last30.map((d) => d.count));
   const streak = computeStreak(sessions);
-  const totalReviews = sessions.reduce((s, x) => s + (x.cards_reviewed ?? 0), 0);
+  const totalReviews = sessions.reduce((s, x) => s + (x.reviewed_words_count ?? 0), 0);
   const totalCorrect = sessions.reduce((s, x) => s + (x.correct_count ?? 0), 0);
   const accuracy = totalReviews ? Math.round((totalCorrect / totalReviews) * 100) : 0;
 
