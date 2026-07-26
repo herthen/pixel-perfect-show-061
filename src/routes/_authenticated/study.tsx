@@ -264,6 +264,7 @@ function StudyPage() {
         {phase.name === "prompt" && (
           <PromptStep
             card={phase.card}
+            freePractice={freePractice}
             onReveal={() => setPhase({ name: "pronounce", card: phase.card, index: phase.index })}
           />
         )}
@@ -291,10 +292,10 @@ function StudyPage() {
         )}
 
         {phase.name === "reference" && (
-          <ReferenceStep card={phase.card} onNext={advance} audioSpeed={audioSpeed} assessment={phase.assessment} />
+          <ReferenceStep card={phase.card} onNext={advance} audioSpeed={audioSpeed} assessment={phase.assessment} freePractice={freePractice} />
         )}
 
-        {phase.name === "done" && <DoneStep summary={phase.summary} />}
+        {phase.name === "done" && <DoneStep summary={phase.summary} freePractice={freePractice} />}
       </div>
     </div>
   );
@@ -326,11 +327,11 @@ function EmptyState() {
   );
 }
 
-function PromptStep({ card, onReveal }: { card: Card; onReveal: () => void }) {
+function PromptStep({ card, freePractice, onReveal }: { card: Card; freePractice: boolean; onReveal: () => void }) {
   return (
     <div className="flex flex-col items-center">
       <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-        {card.progress ? "Review" : "New word"}
+        {card.progress ? "Review" : freePractice ? "Practice" : "New word"}
       </div>
       <div className="mt-6 font-cjk text-[9rem] leading-none text-foreground md:text-[11rem]">
         {card.simplified}
@@ -428,11 +429,13 @@ function ReferenceStep({
   onNext,
   audioSpeed,
   assessment,
+  freePractice,
 }: {
   card: Card;
   onNext: () => void;
   audioSpeed: number;
   assessment: AssessmentResult;
+  freePractice: boolean;
 }) {
   const both = assessment.pronunciation === "known" && assessment.meaning === "known";
   const none = assessment.pronunciation === "unknown" && assessment.meaning === "unknown";
@@ -482,11 +485,13 @@ function ReferenceStep({
 
       <div className="mt-6 flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
-          {both
-            ? "Nicely done — I'll bring this back further out."
-            : none
-              ? "That's fine — we'll return to it soon."
-              : "Making progress — I'll show this again shortly."}
+          {freePractice
+            ? "Keep it up."
+            : both
+              ? "Nicely done — I'll bring this back further out."
+              : none
+                ? "That's fine — we'll return to it soon."
+                : "Making progress — I'll show this again shortly."}
         </div>
         <button
           onClick={onNext}
@@ -508,15 +513,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function DoneStep({ summary }: { summary: { correct: number; total: number; newWords: number } }) {
+function DoneStep({ summary, freePractice }: { summary: { correct: number; total: number; newWords: number }; freePractice: boolean }) {
   const pct = summary.total ? Math.round((summary.correct / summary.total) * 100) : 0;
   return (
     <div className="rounded-lg border border-border bg-surface p-10 text-center">
       <div className="mx-auto mb-4 ink-mark" />
       <h2 className="font-serif text-3xl">Session complete</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        {summary.total} card{summary.total === 1 ? "" : "s"} reviewed · {summary.newWords} new ·{" "}
-        {pct}% confident
+        {summary.total} card{summary.total === 1 ? "" : "s"} reviewed{!freePractice && ` · ${summary.newWords} new`} · {pct}% confident
       </p>
       <div className="mt-8 flex justify-center gap-3">
         <Link
@@ -525,13 +529,24 @@ function DoneStep({ summary }: { summary: { correct: number; total: number; newW
         >
           Back to desk
         </Link>
-        <Link
-          to="/study"
-          className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
-          reloadDocument
-        >
-          Study more
-        </Link>
+        {freePractice ? (
+          <Link
+            to="/study"
+            search={{ mode: "free" }}
+            className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
+            reloadDocument
+          >
+            Practice again
+          </Link>
+        ) : (
+          <Link
+            to="/study"
+            className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
+            reloadDocument
+          >
+            Study more
+          </Link>
+        )}
       </div>
     </div>
   );

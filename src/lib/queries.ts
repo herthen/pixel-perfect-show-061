@@ -167,12 +167,17 @@ export async function buildFreePracticeQueue(): Promise<{
     words = data ?? [];
   }
 
-  return {
-    cards: words.map((word) => ({
-      ...word,
-      progress: progressByWord.get(word.id) ?? null,
-    })),
-  };
+  const cards = words.map((word) => ({
+    ...word,
+    progress: progressByWord.get(word.id) ?? null,
+  }));
+
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+
+  return { cards: cards.slice(0, 20) };
 }
 
 export function computeStreak(sessions: Pick<SessionRow, "started_at" | "completed_at">[]): number {
