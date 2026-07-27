@@ -114,7 +114,7 @@ function VocabularyPage() {
                 key={w.id}
                 className="grid grid-cols-[3rem_1fr_1fr_2.5rem] items-center gap-4 px-4 py-3 hover:bg-accent/40 md:grid-cols-[4rem_10rem_1fr_1fr_2.5rem]"
               >
-                <div className="font-cjk text-2xl text-foreground">{w.simplified}</div>
+                <div className="font-cjk text-sm text-foreground">{w.simplified}</div>
                 <div className="hidden font-serif italic text-cinnabar md:block">{w.pinyin}</div>
                 <div className="md:hidden">
                   <div className="text-sm text-foreground">{w.english_meaning}</div>

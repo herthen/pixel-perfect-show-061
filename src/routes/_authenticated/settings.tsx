@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { settingsQuery, listsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  type CharSize,
+  CHAR_SIZES,
+  CHAR_SIZE_OPTIONS,
+  CHAR_SIZE_LABELS,
+  readCharSize,
+  writeCharSize,
+} from "@/lib/char-size";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   loader: ({ context }) => {
@@ -21,12 +29,18 @@ function SettingsPage() {
   const [speed, setSpeed] = useState(settings?.preferred_audio_speed ?? 0.85);
   const [listId, setListId] = useState<string>(settings?.default_list_id ?? "");
   const [saving, setSaving] = useState(false);
+  const [charSize, setCharSizeState] = useState<CharSize>(readCharSize);
 
   useEffect(() => {
     setTarget(settings?.daily_new_word_target ?? 5);
     setSpeed(settings?.preferred_audio_speed ?? 0.85);
     setListId(settings?.default_list_id ?? "");
   }, [settings]);
+
+  function handleCharSize(size: CharSize) {
+    setCharSizeState(size);
+    writeCharSize(size);
+  }
 
   async function save() {
     setSaving(true);
@@ -125,7 +139,42 @@ function SettingsPage() {
           </label>
         </div>
 
-        <div className="flex justify-end">
+        <div className="border-t border-border pt-6">
+          <span className="text-sm font-medium">Character size</span>
+          <p className="mt-1 text-xs text-muted-foreground">
+            How large Chinese characters appear during study sessions.
+          </p>
+          <div className="mt-4 flex items-center gap-4">
+            <input
+              type="range"
+              min={0}
+              max={2}
+              step={1}
+              value={CHAR_SIZE_OPTIONS.indexOf(charSize)}
+              onChange={(e) => handleCharSize(CHAR_SIZE_OPTIONS[Number(e.target.value)])}
+              aria-label="Character size"
+              className="flex-1 accent-[--cinnabar]"
+            />
+            <div className="w-20 rounded-md border border-border bg-background px-2 py-1 text-center text-sm">
+              {CHAR_SIZE_LABELS[charSize]}
+            </div>
+          </div>
+          <div className="mt-4 flex items-center justify-center rounded-lg border border-border bg-background p-6">
+            <div className="text-center">
+              <div className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                Preview
+              </div>
+              <div
+                className="font-cjk leading-none text-foreground transition-[font-size] duration-200"
+                style={{ fontSize: CHAR_SIZES[charSize].prompt }}
+              >
+                好
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end border-t border-border pt-6">
           <button
             onClick={save}
             disabled={saving}

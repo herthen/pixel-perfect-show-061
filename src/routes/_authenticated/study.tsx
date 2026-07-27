@@ -10,6 +10,11 @@ import {
   type ProgressRow,
   type WordRow,
 } from "@/lib/queries";
+import {
+  type CharSize,
+  CHAR_SIZES,
+  readCharSize,
+} from "@/lib/char-size";
 import { supabase } from "@/integrations/supabase/client";
 import {
   assessmentToRating,
@@ -52,6 +57,15 @@ function StudyPage() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [phase, setPhase] = useState<Phase>({ name: "loading" });
   const [audioSpeed, setAudioSpeed] = useState(0.85);
+  const [charSize, setCharSize] = useState<CharSize>(readCharSize);
+
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key === "study_char_size") setCharSize(readCharSize());
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
   const sessionIdRef = useRef<string | null>(null);
   const startedAtRef = useRef<string>(new Date().toISOString());
   const statsRef = useRef({ correct: 0, total: 0, newWords: 0, reviews: 0 });
@@ -316,6 +330,7 @@ function StudyPage() {
           <IntroStep
             card={phase.card}
             audioSpeed={audioSpeed}
+            charSize={charSize}
             onNext={() => advanceIntro(phase.index)}
           />
         )}
@@ -324,6 +339,7 @@ function StudyPage() {
           <PromptStep
             card={phase.card}
             freePractice={freePractice}
+            charSize={charSize}
             onReveal={() => setPhase({ name: "pronounce", card: phase.card, index: phase.index })}
           />
         )}
@@ -332,6 +348,7 @@ function StudyPage() {
           <QuestionStep
             card={phase.card}
             question="Do you know the pronunciation?"
+            charSize={charSize}
             onYes={() => answerPronunciation(phase, "known")}
             onNo={() => answerPronunciation(phase, "unknown")}
           />
@@ -339,10 +356,11 @@ function StudyPage() {
 
         {phase.name === "meaning" && (
           <>
-            <RevealPinyin card={phase.card} audioSpeed={audioSpeed} />
+            <RevealPinyin card={phase.card} audioSpeed={audioSpeed} charSize={charSize} />
             <QuestionStep
               card={phase.card}
               question="Do you know what it means?"
+              charSize={charSize}
               onYes={() => answerMeaning(phase, "known")}
               onNo={() => answerMeaning(phase, "unknown")}
               subtle
@@ -355,6 +373,7 @@ function StudyPage() {
             card={phase.card}
             onNext={advance}
             audioSpeed={audioSpeed}
+            charSize={charSize}
             assessment={phase.assessment}
             freePractice={freePractice}
           />
@@ -395,10 +414,12 @@ function EmptyState() {
 function IntroStep({
   card,
   audioSpeed,
+  charSize,
   onNext,
 }: {
   card: Card;
   audioSpeed: number;
+  charSize: CharSize;
   onNext: () => void;
 }) {
   useEffect(() => {
@@ -411,7 +432,10 @@ function IntroStep({
         <div className="flex items-start justify-between gap-6">
           <div>
             <div className="text-[11px] uppercase tracking-[0.16em] text-cinnabar">New word</div>
-            <div className="mt-3 font-cjk text-[6rem] leading-none text-foreground md:text-[7rem]">
+            <div
+              className="mt-3 font-cjk leading-none text-foreground"
+              style={{ fontSize: CHAR_SIZES[charSize].card }}
+            >
               {card.simplified}
             </div>
           </div>
@@ -466,10 +490,12 @@ function IntroStep({
 function PromptStep({
   card,
   freePractice,
+  charSize,
   onReveal,
 }: {
   card: Card;
   freePractice: boolean;
+  charSize: CharSize;
   onReveal: () => void;
 }) {
   return (
@@ -477,7 +503,10 @@ function PromptStep({
       <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
         {card.progress ? "Review" : freePractice ? "Practice" : "New word"}
       </div>
-      <div className="mt-6 font-cjk text-[9rem] leading-none text-foreground md:text-[11rem]">
+      <div
+        className="mt-6 font-cjk leading-none text-foreground"
+        style={{ fontSize: CHAR_SIZES[charSize].prompt }}
+      >
         {card.simplified}
       </div>
       <p className="mt-8 text-sm text-muted-foreground">
@@ -500,12 +529,14 @@ function PromptStep({
 function QuestionStep({
   card,
   question,
+  charSize,
   onYes,
   onNo,
   subtle = false,
 }: {
   card: Card;
   question: string;
+  charSize: CharSize;
   onYes: () => void;
   onNo: () => void;
   subtle?: boolean;
@@ -513,7 +544,10 @@ function QuestionStep({
   return (
     <div className={`flex flex-col items-center ${subtle ? "mt-8" : ""}`}>
       {!subtle && (
-        <div className="font-cjk text-[7rem] leading-none text-foreground md:text-[9rem]">
+        <div
+          className="font-cjk leading-none text-foreground"
+          style={{ fontSize: CHAR_SIZES[charSize].question }}
+        >
           {card.simplified}
         </div>
       )}
@@ -542,13 +576,16 @@ function QuestionStep({
   );
 }
 
-function RevealPinyin({ card, audioSpeed }: { card: Card; audioSpeed: number }) {
+function RevealPinyin({ card, audioSpeed, charSize }: { card: Card; audioSpeed: number; charSize: CharSize }) {
   useEffect(() => {
     playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed });
   }, [card.id]);
   return (
     <div className="flex flex-col items-center">
-      <div className="font-cjk text-[6rem] leading-none text-foreground md:text-[7.5rem]">
+      <div
+        className="font-cjk leading-none text-foreground"
+        style={{ fontSize: CHAR_SIZES[charSize].card }}
+      >
         {card.simplified}
       </div>
       <div className="mt-4 flex items-center gap-3">
@@ -571,12 +608,14 @@ function ReferenceStep({
   card,
   onNext,
   audioSpeed,
+  charSize,
   assessment,
   freePractice,
 }: {
   card: Card;
   onNext: () => void;
   audioSpeed: number;
+  charSize: CharSize;
   assessment: AssessmentResult;
   freePractice: boolean;
 }) {
@@ -590,7 +629,10 @@ function ReferenceStep({
             <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               Reference card
             </div>
-            <div className="mt-3 font-cjk text-[6rem] leading-none text-foreground md:text-[7rem]">
+            <div
+              className="mt-3 font-cjk leading-none text-foreground"
+              style={{ fontSize: CHAR_SIZES[charSize].card }}
+            >
               {card.simplified}
             </div>
           </div>
