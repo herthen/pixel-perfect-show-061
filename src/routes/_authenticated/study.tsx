@@ -14,6 +14,7 @@ import {
   type CharSize,
   CHAR_SIZES,
   readCharSize,
+  writeCharSize,
 } from "@/lib/char-size";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -74,9 +75,16 @@ function StudyPage() {
     (async () => {
       const [queueResult, settings] = await Promise.all([
         freePractice ? buildFreePracticeQueue() : buildStudyQueue(),
-        supabase.from("user_settings").select("preferred_audio_speed").maybeSingle(),
+        supabase.from("user_settings").select("preferred_audio_speed, char_size").maybeSingle(),
       ]);
       setAudioSpeed(settings.data?.preferred_audio_speed ?? 0.85);
+      // char_size column may not exist yet if migration is pending
+      const dbCharSize = settings.error ? null : (settings.data as { char_size?: string } | null)?.char_size;
+      if (dbCharSize) {
+        const dbSize = dbCharSize as CharSize;
+        setCharSize(dbSize);
+        writeCharSize(dbSize);
+      }
       const { cards } = queueResult;
       if (cards.length === 0) {
         setPhase({ name: "empty" });
@@ -196,6 +204,10 @@ function StudyPage() {
         ? { name: "introduce", card: item.card, index: nextIndex }
         : { name: "prompt", card: item.card, index: nextIndex }
     );
+  }
+
+  function redoCard(card: Card, index: number) {
+    setPhase({ name: "pronounce", card, index });
   }
 
   async function advance() {
@@ -372,6 +384,7 @@ function StudyPage() {
           <ReferenceStep
             card={phase.card}
             onNext={advance}
+            onRedo={() => redoCard(phase.card, phase.index)}
             audioSpeed={audioSpeed}
             charSize={charSize}
             assessment={phase.assessment}
@@ -607,6 +620,7 @@ function RevealPinyin({ card, audioSpeed, charSize }: { card: Card; audioSpeed: 
 function ReferenceStep({
   card,
   onNext,
+  onRedo,
   audioSpeed,
   charSize,
   assessment,
@@ -614,6 +628,7 @@ function ReferenceStep({
 }: {
   card: Card;
   onNext: () => void;
+  onRedo: () => void;
   audioSpeed: number;
   charSize: CharSize;
   assessment: AssessmentResult;
@@ -668,19 +683,29 @@ function ReferenceStep({
         </dl>
       </div>
 
-      <div className="mt-6 flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">
-          {freePractice
-            ? "Keep it up."
-            : both
-              ? "Nicely done — I'll bring this back further out."
-              : none
-                ? "That's fine — we'll return to it soon."
-                : "Making progress — I'll show this again shortly."}
+      <div className="mt-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-muted-foreground">
+            {freePractice
+              ? "Keep it up."
+              : both
+                ? "Nicely done — I'll bring this back further out."
+                : none
+                  ? "That's fine — we'll return to it soon."
+                  : "Making progress — I'll show this again shortly."}
+          </div>
+          <button
+            type="button"
+            onClick={onRedo}
+            className="shrink-0 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            title="Re-do this card from the start"
+          >
+            ← Redo
+          </button>
         </div>
         <button
           onClick={onNext}
-          className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+          className="shrink-0 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
         >
           Next card →
         </button>

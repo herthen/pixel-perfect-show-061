@@ -28,6 +28,7 @@ function SettingsPage() {
   const [target, setTarget] = useState(settings?.daily_new_word_target ?? 5);
   const [speed, setSpeed] = useState(settings?.preferred_audio_speed ?? 0.85);
   const [listId, setListId] = useState<string>(settings?.default_list_id ?? "");
+  const [freeSessionLength, setFreeSessionLength] = useState(settings?.free_practice_session_length ?? 20);
   const [saving, setSaving] = useState(false);
   const [charSize, setCharSizeState] = useState<CharSize>(readCharSize);
 
@@ -35,6 +36,12 @@ function SettingsPage() {
     setTarget(settings?.daily_new_word_target ?? 5);
     setSpeed(settings?.preferred_audio_speed ?? 0.85);
     setListId(settings?.default_list_id ?? "");
+    setFreeSessionLength(settings?.free_practice_session_length ?? 20);
+    if (settings?.char_size) {
+      const dbSize = settings.char_size as CharSize;
+      setCharSizeState(dbSize);
+      writeCharSize(dbSize);
+    }
   }, [settings]);
 
   function handleCharSize(size: CharSize) {
@@ -46,18 +53,22 @@ function SettingsPage() {
     setSaving(true);
     try {
       const user = (await supabase.auth.getUser()).data.user!;
+      const base = {
+        user_id: user.id,
+        daily_new_word_target: target,
+        preferred_audio_speed: speed,
+        default_list_id: listId || null,
+      };
       const { error } = await supabase
         .from("user_settings")
-        .upsert(
-          {
-            user_id: user.id,
-            daily_new_word_target: target,
-            preferred_audio_speed: speed,
-            default_list_id: listId || null,
-          },
-          { onConflict: "user_id" },
-        );
-      if (error) throw error;
+        .upsert({ ...base, char_size: charSize, free_practice_session_length: freeSessionLength }, { onConflict: "user_id" });
+      if (error) {
+        // Migration not yet applied — fall back to saving core settings only
+        const { error: fallbackError } = await supabase
+          .from("user_settings")
+          .upsert(base, { onConflict: "user_id" });
+        if (fallbackError) throw fallbackError;
+      }
       toast.success("Saved");
       qc.invalidateQueries({ queryKey: ["user_settings"] });
     } catch (e) {
@@ -140,6 +151,30 @@ function SettingsPage() {
         </div>
 
         <div className="border-t border-border pt-6">
+          <label className="block">
+            <span className="text-sm font-medium">Free practice session length</span>
+            <p className="mt-1 text-xs text-muted-foreground">
+              How many cards to show in a free practice session.
+            </p>
+            <div className="mt-4 flex items-center gap-4">
+              <input
+                type="range"
+                min={5}
+                max={50}
+                step={5}
+                value={freeSessionLength}
+                onChange={(e) => setFreeSessionLength(Number(e.target.value))}
+                aria-label="Free practice session length"
+                className="flex-1 accent-[--cinnabar]"
+              />
+              <div className="w-14 rounded-md border border-border bg-background px-2 py-1 text-center font-serif text-lg">
+                {freeSessionLength}
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <div className="border-t border-border pt-6">
           <span className="text-sm font-medium">Character size</span>
           <p className="mt-1 text-xs text-muted-foreground">
             How large Chinese characters appear during study sessions.
@@ -176,6 +211,7 @@ function SettingsPage() {
 
         <div className="flex justify-end border-t border-border pt-6">
           <button
+            type="button"
             onClick={save}
             disabled={saving}
             className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"

@@ -161,6 +161,7 @@ export async function buildFreePracticeQueue(): Promise<{
   ]);
 
   const defaultListId = settings?.default_list_id ?? null;
+  const sessionCap = settings?.free_practice_session_length ?? 20;
   const progressByWord = new Map((progress ?? []).map((p) => [p.word_id, p as ProgressRow]));
 
   let words: WordRow[] = [];
@@ -186,7 +187,7 @@ export async function buildFreePracticeQueue(): Promise<{
     [cards[i], cards[j]] = [cards[j], cards[i]];
   }
 
-  return { cards: cards.slice(0, 20) };
+  return { cards: cards.slice(0, sessionCap) };
 }
 
 export function computeStreak(sessions: Pick<SessionRow, "started_at" | "completed_at">[]): number {
