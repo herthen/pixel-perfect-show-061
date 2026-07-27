@@ -66,14 +66,15 @@ After `supabase.auth.signUp()` the app immediately navigates to `/dashboard`. If
 
 ## Features
 
-### F-1 · Undo / correct last answer (Medium)
-No way to go back after a mis-tap on pronunciation or meaning. A "go back" button on the reference card (before pressing "Next") would cover the most common accidental-tap case.
+### ~~F-1 · Undo / correct last answer~~ ✓ done
+~~No way to go back after a mis-tap on pronunciation or meaning. A "go back" button on the reference card (before pressing "Next") would cover the most common accidental-tap case.~~
 
-### F-2 · Configurable free practice session length (Easy)
-The 20-card cap is hardcoded in `buildFreePracticeQueue`. Add a setting or respect `daily_new_word_target` as the cap.
+### ~~F-2 · Configurable free practice session length~~ ✓ done
+~~The 20-card cap is hardcoded in `buildFreePracticeQueue`. Add a setting or respect `daily_new_word_target` as the cap.~~
 
-### F-3 · Sync character size preference to Supabase (Easy)
-Character size lives in `localStorage` only and is lost on a new device or browser. Adding a column to `user_settings` and writing it alongside the other settings on save would fix this.
+### ~~F-3 · Sync character size preference to Supabase~~ ✓ done (pending DB migration)
+~~Character size lives in `localStorage` only and is lost on a new device or browser. Adding a column to `user_settings` and writing it alongside the other settings on save would fix this.~~
+> Migration `supabase/migrations/20260727000001_add_char_size_and_free_practice_length.sql` needs to be applied via Supabase SQL Editor. Until then the app falls back to localStorage gracefully.
 
 ### F-4 · Word detail / drill-down in vocabulary (Medium)
 Vocabulary rows are inert beyond audio playback. Clicking a row could open a panel showing the SRS schedule (next due date, current interval, ease factor, review history). All data is already in `progressByWord`.
