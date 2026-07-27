@@ -93,8 +93,8 @@ Vocabulary rows are inert beyond audio playback. Clicking a row could open a pan
 ### Q-1 · Audio speed test button in settings (Easy)
 The speed slider has no audible preview. Add a small play button next to it that plays a sample word (e.g. 你好) at the current speed.
 
-### Q-2 · Vocabulary list sort control (Easy)
-The list is always sorted alphabetically. A sort dropdown (by status, due date, last reviewed) would make the page useful for targeted review.
+### ~~Q-2 · Vocabulary list sort control~~ ✓ done
+~~The list is always sorted alphabetically. A sort dropdown (by status, due date, last reviewed) would make the page useful for targeted review.~~
 
 ### Q-3 · Dashboard "Unmet" uses hardcoded 150 (Easy)
 **File:** `dashboard.tsx` line 106  

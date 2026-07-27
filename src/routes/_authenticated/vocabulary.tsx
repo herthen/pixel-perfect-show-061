@@ -24,11 +24,28 @@ const FILTERS = [
 
 type Filter = (typeof FILTERS)[number]["key"];
 
+const SORTS = [
+  { key: "alpha",  label: "A → Z" },
+  { key: "status", label: "Status" },
+  { key: "due",    label: "Due soonest" },
+  { key: "recent", label: "Least reviewed" },
+] as const;
+
+type Sort = (typeof SORTS)[number]["key"];
+
+const STATUS_ORDER: Record<string, number> = {
+  learning: 0,
+  review: 1,
+  mastered: 2,
+  new: 3,
+};
+
 function VocabularyPage() {
   const { data: words } = useSuspenseQuery(wordsQuery());
   const { data: progress } = useSuspenseQuery(progressQuery());
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [sort, setSort] = useState<Sort>("alpha");
 
   const progressByWord = useMemo(
     () => new Map(progress.map((p) => [p.word_id, p as ProgressRow])),
@@ -49,6 +66,43 @@ function VocabularyPage() {
       );
     });
   }, [words, progressByWord, filter, query]);
+
+  const sorted = useMemo(() => {
+    const result = [...filtered];
+    switch (sort) {
+      case "status":
+        result.sort((a, b) => {
+          const sa = progressByWord.get(a.id)?.status ?? "new";
+          const sb = progressByWord.get(b.id)?.status ?? "new";
+          return (STATUS_ORDER[sa] ?? 3) - (STATUS_ORDER[sb] ?? 3);
+        });
+        break;
+      case "due":
+        result.sort((a, b) => {
+          const pa = progressByWord.get(a.id);
+          const pb = progressByWord.get(b.id);
+          if (!pa && !pb) return 0;
+          if (!pa) return 1;
+          if (!pb) return -1;
+          return pa.due_at.localeCompare(pb.due_at);
+        });
+        break;
+      case "recent":
+        result.sort((a, b) => {
+          const pa = progressByWord.get(a.id);
+          const pb = progressByWord.get(b.id);
+          if (!pa && !pb) return 0;
+          if (!pa) return -1;
+          if (!pb) return 1;
+          const la = pa.last_reviewed_at ?? "";
+          const lb = pb.last_reviewed_at ?? "";
+          return la.localeCompare(lb);
+        });
+        break;
+      // "alpha" — words already come from the DB sorted alphabetically
+    }
+    return result;
+  }, [filtered, sort, progressByWord]);
 
   const counts = useMemo(() => {
     const c = { all: words.length, new: 0, learning: 0, review: 0, mastered: 0 };
@@ -79,7 +133,7 @@ function VocabularyPage() {
             className="w-full rounded-md border border-input bg-surface py-2.5 pl-9 pr-3 text-sm outline-none focus:border-cinnabar/60"
           />
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {FILTERS.map((f) => (
             <button
               key={f.key}
@@ -94,6 +148,17 @@ function VocabularyPage() {
               {f.label} <span className="ml-1 text-muted-foreground/70">{counts[f.key]}</span>
             </button>
           ))}
+          <div className="ml-1 h-4 w-px bg-border" />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as Sort)}
+            aria-label="Sort order"
+            className="rounded-md border border-border bg-surface py-1.5 pl-2.5 pr-6 text-xs text-muted-foreground outline-none focus:border-cinnabar/60 hover:text-foreground"
+          >
+            {SORTS.map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -106,7 +171,7 @@ function VocabularyPage() {
           <div />
         </div>
         <ul className="divide-y divide-border">
-          {filtered.map((w) => {
+          {sorted.map((w) => {
             const p = progressByWord.get(w.id);
             const status = p?.status ?? "new";
             return (
@@ -135,7 +200,7 @@ function VocabularyPage() {
               </li>
             );
           })}
-          {filtered.length === 0 && (
+          {sorted.length === 0 && (
             <li className="px-4 py-10 text-center text-sm text-muted-foreground">
               Nothing matches those filters.
             </li>
