@@ -79,33 +79,27 @@ export type Database = {
       }
       user_settings: {
         Row: {
-          char_size: string
           created_at: string
           daily_new_word_target: number
           default_list_id: string | null
-          free_practice_session_length: number
           preferred_audio_speed: number
           streak_enabled: boolean
           updated_at: string
           user_id: string
         }
         Insert: {
-          char_size?: string
           created_at?: string
           daily_new_word_target?: number
           default_list_id?: string | null
-          free_practice_session_length?: number
           preferred_audio_speed?: number
           streak_enabled?: boolean
           updated_at?: string
           user_id: string
         }
         Update: {
-          char_size?: string
           created_at?: string
           daily_new_word_target?: number
           default_list_id?: string | null
-          free_practice_session_length?: number
           preferred_audio_speed?: number
           streak_enabled?: boolean
           updated_at?: string
