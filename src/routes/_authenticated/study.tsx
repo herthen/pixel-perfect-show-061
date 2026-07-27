@@ -95,7 +95,7 @@ function StudyPage() {
       if (freePractice) {
         items = cards.map((c) => ({ type: "quiz" as const, card: c }));
       } else {
-        const reviewsDue = "reviewsDue" in queueResult ? queueResult.reviewsDue : 0;
+        const reviewsDue = (queueResult as { reviewsDue?: number }).reviewsDue ?? 0;
         const reviewCards = cards.slice(0, reviewsDue);
         const newCards = cards.slice(reviewsDue);
         items = reviewCards.map((c) => ({ type: "quiz" as const, card: c }));
