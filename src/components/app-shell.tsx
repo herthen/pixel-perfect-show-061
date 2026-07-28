@@ -1,7 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, GraduationCap, BookText, LineChart, Settings2, UserRound } from "lucide-react";
+import { LayoutDashboard, GraduationCap, BookText, LineChart, Settings2, UserRound, Sun, Moon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/components/theme-provider";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -26,6 +27,7 @@ function Brand() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="min-h-screen w-full bg-background text-foreground">
@@ -60,8 +62,16 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
-          <div className="mt-auto px-4 py-4 text-[11px] text-muted-foreground/80">
-            v1 · Study a little, every day.
+          <div className="mt-auto flex items-center justify-between px-4 py-4">
+            <span className="text-[11px] text-muted-foreground/80">v1 · Study a little, every day.</span>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
           </div>
         </aside>
 
@@ -72,6 +82,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="ink-mark" aria-hidden />
               <span className="font-serif text-sm">Inkstone Chinese</span>
             </div>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
           </header>
 
           <main className="flex-1 px-4 pb-24 pt-6 md:px-10 md:pb-10 md:pt-10">{children}</main>
