@@ -76,8 +76,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           <main className="flex-1 px-4 pb-24 pt-6 md:px-10 md:pb-10 md:pt-10">{children}</main>
 
-          {/* Mobile bottom nav */}
-          <nav className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-border bg-sidebar/95 px-1 py-1.5 backdrop-blur md:hidden">
+          {/* Mobile bottom nav — hidden during study sessions to avoid overlapping the action bar */}
+          <nav className={`fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-border bg-sidebar/95 px-1 py-1.5 backdrop-blur md:hidden ${pathname.startsWith("/study") ? "hidden" : ""}`}>
             {NAV.slice(0, 5).map((item) => {
               const active = pathname === item.to || pathname.startsWith(item.to + "/");
               const Icon = item.icon;

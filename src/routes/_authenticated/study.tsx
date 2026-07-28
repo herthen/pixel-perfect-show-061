@@ -78,7 +78,6 @@ function StudyPage() {
         supabase.from("user_settings").select("preferred_audio_speed, char_size").maybeSingle(),
       ]);
       setAudioSpeed(settings.data?.preferred_audio_speed ?? 0.85);
-      // char_size column may not exist yet if migration is pending
       const dbCharSize = settings.error ? null : (settings.data as { char_size?: string } | null)?.char_size;
       if (dbCharSize) {
         const dbSize = dbCharSize as CharSize;
@@ -298,103 +297,219 @@ function StudyPage() {
     return null;
   }, [phase, queue.length]);
 
+  const hasActionBar =
+    phase.name === "introduce" ||
+    phase.name === "prompt" ||
+    phase.name === "pronounce" ||
+    phase.name === "meaning" ||
+    phase.name === "reference";
+
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="flex items-center justify-between">
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Link>
+    <>
+      {/* Scrollable content — pb-28 keeps cards above the fixed action bar */}
+      <div className={`mx-auto max-w-2xl ${hasActionBar ? "pb-28" : ""}`}>
+        <div className="flex items-center justify-between">
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Link>
+          {progress && (
+            <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Card {progress.current} of {progress.total}
+            </div>
+          )}
+        </div>
+
         {progress && (
-          <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-            Card {progress.current} of {progress.total}
-          </div>
-        )}
-      </div>
-
-      {progress && (
-        <div className="mt-4 h-[2px] w-full overflow-hidden rounded-full bg-border">
-          <div
-            className="h-full bg-cinnabar transition-[width] duration-300"
-            style={{ width: `${(progress.current / progress.total) * 100}%` }}
-          />
-        </div>
-      )}
-
-      {freePractice && (
-        <div className="mt-4 rounded-lg border border-dashed border-border bg-surface p-4 text-sm text-muted-foreground">
-          Free practice mode — this session will not update your spaced repetition progress.
-        </div>
-      )}
-
-      <div className="mt-14 md:mt-20">
-        {phase.name === "loading" && (
-          <div className="py-24 text-center text-sm text-muted-foreground">
-            Setting up your desk…
+          <div className="mt-4 h-[2px] w-full overflow-hidden rounded-full bg-border">
+            <div
+              className="h-full bg-cinnabar transition-[width] duration-300"
+              style={{ width: `${(progress.current / progress.total) * 100}%` }}
+            />
           </div>
         )}
 
-        {phase.name === "empty" && <EmptyState />}
-
-        {phase.name === "introduce" && (
-          <IntroStep
-            card={phase.card}
-            audioSpeed={audioSpeed}
-            charSize={charSize}
-            onNext={() => advanceIntro(phase.index)}
-          />
+        {freePractice && (
+          <div className="mt-4 rounded-lg border border-dashed border-border bg-surface p-4 text-sm text-muted-foreground">
+            Free practice mode — this session will not update your spaced repetition progress.
+          </div>
         )}
 
-        {phase.name === "prompt" && (
-          <PromptStep
-            card={phase.card}
-            freePractice={freePractice}
-            charSize={charSize}
-            onReveal={() => setPhase({ name: "pronounce", card: phase.card, index: phase.index })}
-          />
-        )}
+        <div className="mt-14 md:mt-20">
+          {phase.name === "loading" && (
+            <div className="py-24 text-center text-sm text-muted-foreground">
+              Setting up your desk…
+            </div>
+          )}
 
-        {phase.name === "pronounce" && (
-          <QuestionStep
-            card={phase.card}
-            question="Do you know the pronunciation?"
-            charSize={charSize}
-            onYes={() => answerPronunciation(phase, "known")}
-            onNo={() => answerPronunciation(phase, "unknown")}
-          />
-        )}
+          {phase.name === "empty" && <EmptyState />}
 
-        {phase.name === "meaning" && (
-          <>
-            <RevealPinyin card={phase.card} audioSpeed={audioSpeed} charSize={charSize} />
+          {phase.name === "introduce" && (
+            <IntroStep card={phase.card} audioSpeed={audioSpeed} charSize={charSize} />
+          )}
+
+          {phase.name === "prompt" && (
+            <PromptStep card={phase.card} freePractice={freePractice} charSize={charSize} />
+          )}
+
+          {phase.name === "pronounce" && (
             <QuestionStep
               card={phase.card}
-              question="Do you know what it means?"
+              question="Do you know the pronunciation?"
               charSize={charSize}
-              onYes={() => answerMeaning(phase, "known")}
-              onNo={() => answerMeaning(phase, "unknown")}
-              subtle
             />
-          </>
-        )}
+          )}
 
-        {phase.name === "reference" && (
-          <ReferenceStep
-            card={phase.card}
-            onNext={advance}
-            onRedo={() => redoCard(phase.card, phase.index)}
-            audioSpeed={audioSpeed}
-            charSize={charSize}
-            assessment={phase.assessment}
-            freePractice={freePractice}
-          />
-        )}
+          {phase.name === "meaning" && (
+            <>
+              <RevealPinyin card={phase.card} audioSpeed={audioSpeed} charSize={charSize} />
+              <QuestionStep
+                card={phase.card}
+                question="Do you know what it means?"
+                charSize={charSize}
+                subtle
+              />
+            </>
+          )}
 
-        {phase.name === "done" && <DoneStep summary={phase.summary} freePractice={freePractice} />}
+          {phase.name === "reference" && (
+            <ReferenceStep card={phase.card} audioSpeed={audioSpeed} charSize={charSize} />
+          )}
+
+          {phase.name === "done" && <DoneStep summary={phase.summary} freePractice={freePractice} />}
+        </div>
       </div>
-    </div>
+
+      {/* Fixed action bar — always at the same screen position regardless of card content height.
+          The max-w-7xl + w-56 spacer mirrors the app shell sidebar so buttons align with content. */}
+      {hasActionBar && (
+        <div className="fixed bottom-0 inset-x-0 z-20 border-t border-border bg-background/95 backdrop-blur-sm">
+          <div className="mx-auto flex max-w-7xl">
+            <div className="hidden w-56 shrink-0 md:block" />
+            <div className="flex-1 px-4 py-4 md:px-10">
+              <div className="mx-auto max-w-2xl">
+
+                {phase.name === "introduce" && (
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs text-muted-foreground">
+                      Take a moment to study this word.{" "}
+                      <kbd className="rounded border border-border px-1.5 py-0.5">Space</kbd> when ready.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => advanceIntro(phase.index)}
+                      className="shrink-0 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+                    >
+                      Got it →
+                    </button>
+                  </div>
+                )}
+
+                {phase.name === "prompt" && (
+                  <div className="flex flex-col items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPhase({ name: "pronounce", card: phase.card, index: phase.index })}
+                      className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+                    >
+                      Reveal
+                    </button>
+                    <p className="text-[11px] text-muted-foreground/70">
+                      <kbd className="rounded border border-border px-1.5 py-0.5">Space</kbd> to reveal ·{" "}
+                      <kbd className="rounded border border-border px-1.5 py-0.5">S</kbd> to play sound
+                    </p>
+                  </div>
+                )}
+
+                {phase.name === "pronounce" && (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => answerPronunciation(phase, "unknown")}
+                        className="flex min-w-[10rem] items-center justify-center gap-2 rounded-md border border-border bg-surface px-6 py-3 text-sm text-foreground hover:border-cinnabar/50"
+                      >
+                        <X className="h-4 w-4 text-cinnabar" /> Not yet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => answerPronunciation(phase, "known")}
+                        className="flex min-w-[10rem] items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm text-primary-foreground hover:opacity-90"
+                      >
+                        <Check className="h-4 w-4" /> I know it
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/70">
+                      <kbd className="rounded border border-border px-1.5 py-0.5">←</kbd> not yet ·{" "}
+                      <kbd className="rounded border border-border px-1.5 py-0.5">→</kbd> know it
+                    </p>
+                  </div>
+                )}
+
+                {phase.name === "meaning" && (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => answerMeaning(phase, "unknown")}
+                        className="flex min-w-[10rem] items-center justify-center gap-2 rounded-md border border-border bg-surface px-6 py-3 text-sm text-foreground hover:border-cinnabar/50"
+                      >
+                        <X className="h-4 w-4 text-cinnabar" /> Not yet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => answerMeaning(phase, "known")}
+                        className="flex min-w-[10rem] items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm text-primary-foreground hover:opacity-90"
+                      >
+                        <Check className="h-4 w-4" /> I know it
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/70">
+                      <kbd className="rounded border border-border px-1.5 py-0.5">←</kbd> not yet ·{" "}
+                      <kbd className="rounded border border-border px-1.5 py-0.5">→</kbd> know it
+                    </p>
+                  </div>
+                )}
+
+                {phase.name === "reference" && (
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="text-xs text-muted-foreground">
+                        {freePractice
+                          ? "Keep it up."
+                          : phase.assessment.pronunciation === "known" && phase.assessment.meaning === "known"
+                          ? "Nicely done — I'll bring this back further out."
+                          : phase.assessment.pronunciation === "unknown" && phase.assessment.meaning === "unknown"
+                          ? "That's fine — we'll return to it soon."
+                          : "Making progress — I'll show this again shortly."}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => redoCard(phase.card, phase.index)}
+                        className="shrink-0 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                        title="Re-do this card from the start"
+                      >
+                        ← Redo
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={advance}
+                      className="shrink-0 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+                    >
+                      Next card →
+                    </button>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -428,74 +543,57 @@ function IntroStep({
   card,
   audioSpeed,
   charSize,
-  onNext,
 }: {
   card: Card;
   audioSpeed: number;
   charSize: CharSize;
-  onNext: () => void;
 }) {
   useEffect(() => {
     playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed });
   }, [card.id]);
 
   return (
-    <div>
-      <div className="rounded-lg border border-cinnabar/20 bg-surface p-8 md:p-10">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.16em] text-cinnabar">New word</div>
-            <div
-              className="mt-3 font-cjk leading-none text-foreground"
-              style={{ fontSize: CHAR_SIZES[charSize].card }}
-            >
-              {card.simplified}
-            </div>
-          </div>
-          <button
-            onClick={() =>
-              playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed })
-            }
-            className="rounded-md border border-border bg-background p-2 text-muted-foreground hover:text-foreground"
-            aria-label="Play audio"
+    <div className="rounded-lg border border-cinnabar/20 bg-surface p-8 md:p-10">
+      <div className="flex items-start justify-between gap-6">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.16em] text-cinnabar">New word</div>
+          <div
+            className="mt-3 font-cjk leading-none text-foreground"
+            style={{ fontSize: CHAR_SIZES[charSize].card }}
           >
-            <Volume2 className="h-5 w-5" />
-          </button>
+            {card.simplified}
+          </div>
         </div>
-
-        <dl className="mt-8 space-y-4 text-sm">
-          <Field label="Pinyin">
-            <span className="font-serif text-lg italic text-cinnabar">{card.pinyin}</span>
-          </Field>
-          <Field label="Meaning">
-            <span className="font-serif text-lg text-foreground">{card.english_meaning}</span>
-          </Field>
-          {card.part_of_speech && <Field label="Part of speech">{card.part_of_speech}</Field>}
-          {card.example_sentence && (
-            <Field label="Example">
-              <div className="space-y-1">
-                <div className="font-cjk text-base text-foreground">{card.example_sentence}</div>
-                {card.example_translation && (
-                  <div className="text-muted-foreground">{card.example_translation}</div>
-                )}
-              </div>
-            </Field>
-          )}
-        </dl>
-      </div>
-
-      <div className="mt-6 flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          Take a moment to study this word.{" "}
-          <kbd className="rounded border border-border px-1.5 py-0.5">Space</kbd> when ready.
-        </p>
         <button
-          onClick={onNext}
-          className="rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+          onClick={() =>
+            playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed })
+          }
+          className="rounded-md border border-border bg-background p-2 text-muted-foreground hover:text-foreground"
+          aria-label="Play audio"
         >
-          Got it →
+          <Volume2 className="h-5 w-5" />
         </button>
       </div>
+
+      <dl className="mt-8 space-y-4 text-sm">
+        <Field label="Pinyin">
+          <span className="font-serif text-lg italic text-cinnabar">{card.pinyin}</span>
+        </Field>
+        <Field label="Meaning">
+          <span className="font-serif text-lg text-foreground">{card.english_meaning}</span>
+        </Field>
+        {card.part_of_speech && <Field label="Part of speech">{card.part_of_speech}</Field>}
+        {card.example_sentence && (
+          <Field label="Example">
+            <div className="space-y-1">
+              <div className="font-cjk text-base text-foreground">{card.example_sentence}</div>
+              {card.example_translation && (
+                <div className="text-muted-foreground">{card.example_translation}</div>
+              )}
+            </div>
+          </Field>
+        )}
+      </dl>
     </div>
   );
 }
@@ -504,12 +602,10 @@ function PromptStep({
   card,
   freePractice,
   charSize,
-  onReveal,
 }: {
   card: Card;
   freePractice: boolean;
   charSize: CharSize;
-  onReveal: () => void;
 }) {
   return (
     <div className="flex flex-col items-center">
@@ -525,16 +621,6 @@ function PromptStep({
       <p className="mt-8 text-sm text-muted-foreground">
         Take a moment. When you're ready, reveal.
       </p>
-      <button
-        onClick={onReveal}
-        className="mt-6 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-      >
-        Reveal
-      </button>
-      <p className="mt-3 text-[11px] text-muted-foreground/70">
-        <kbd className="rounded border border-border px-1.5 py-0.5">Space</kbd> to reveal ·
-        <kbd className="ml-1.5 rounded border border-border px-1.5 py-0.5">S</kbd> to play sound
-      </p>
     </div>
   );
 }
@@ -543,15 +629,11 @@ function QuestionStep({
   card,
   question,
   charSize,
-  onYes,
-  onNo,
   subtle = false,
 }: {
   card: Card;
   question: string;
   charSize: CharSize;
-  onYes: () => void;
-  onNo: () => void;
   subtle?: boolean;
 }) {
   return (
@@ -565,26 +647,6 @@ function QuestionStep({
         </div>
       )}
       <p className="mt-8 font-serif text-xl text-foreground">{question}</p>
-      <div className="mt-6 flex gap-3">
-        <button
-          onClick={onNo}
-          className="flex min-w-[10rem] items-center justify-center gap-2 rounded-md border border-border bg-surface px-6 py-3 text-sm text-foreground hover:border-cinnabar/50"
-        >
-          <X className="h-4 w-4 text-cinnabar" />
-          Not yet
-        </button>
-        <button
-          onClick={onYes}
-          className="flex min-w-[10rem] items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm text-primary-foreground hover:opacity-90"
-        >
-          <Check className="h-4 w-4" />
-          I know it
-        </button>
-      </div>
-      <p className="mt-3 text-[11px] text-muted-foreground/70">
-        <kbd className="rounded border border-border px-1.5 py-0.5">←</kbd> not yet ·{" "}
-        <kbd className="rounded border border-border px-1.5 py-0.5">→</kbd> know it
-      </p>
     </div>
   );
 }
@@ -604,6 +666,7 @@ function RevealPinyin({ card, audioSpeed, charSize }: { card: Card; audioSpeed: 
       <div className="mt-4 flex items-center gap-3">
         <span className="font-serif text-2xl italic text-cinnabar">{card.pinyin}</span>
         <button
+          type="button"
           onClick={() =>
             playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed })
           }
@@ -619,97 +682,57 @@ function RevealPinyin({ card, audioSpeed, charSize }: { card: Card; audioSpeed: 
 
 function ReferenceStep({
   card,
-  onNext,
-  onRedo,
   audioSpeed,
   charSize,
-  assessment,
-  freePractice,
 }: {
   card: Card;
-  onNext: () => void;
-  onRedo: () => void;
   audioSpeed: number;
   charSize: CharSize;
-  assessment: AssessmentResult;
-  freePractice: boolean;
 }) {
-  const both = assessment.pronunciation === "known" && assessment.meaning === "known";
-  const none = assessment.pronunciation === "unknown" && assessment.meaning === "unknown";
   return (
-    <div>
-      <div className="rounded-lg border border-border bg-surface p-8 md:p-10">
-        <div className="flex items-start justify-between gap-6">
-          <div>
-            <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-              Reference card
-            </div>
-            <div
-              className="mt-3 font-cjk leading-none text-foreground"
-              style={{ fontSize: CHAR_SIZES[charSize].card }}
-            >
-              {card.simplified}
-            </div>
+    <div className="rounded-lg border border-border bg-surface p-8 md:p-10">
+      <div className="flex items-start justify-between gap-6">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+            Reference card
           </div>
-          <button
-            onClick={() =>
-              playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed })
-            }
-            className="rounded-md border border-border bg-background p-2 text-muted-foreground hover:text-foreground"
-            aria-label="Replay audio"
+          <div
+            className="mt-3 font-cjk leading-none text-foreground"
+            style={{ fontSize: CHAR_SIZES[charSize].card }}
           >
-            <Volume2 className="h-5 w-5" />
-          </button>
-        </div>
-
-        <dl className="mt-8 space-y-4 text-sm">
-          <Field label="Pinyin">
-            <span className="font-serif text-lg italic text-cinnabar">{card.pinyin}</span>
-          </Field>
-          <Field label="Meaning">
-            <span className="font-serif text-lg text-foreground">{card.english_meaning}</span>
-          </Field>
-          {card.part_of_speech && <Field label="Part of speech">{card.part_of_speech}</Field>}
-          {card.example_sentence && (
-            <Field label="Example">
-              <div className="space-y-1">
-                <div className="font-cjk text-base text-foreground">{card.example_sentence}</div>
-                {card.example_translation && (
-                  <div className="text-muted-foreground">{card.example_translation}</div>
-                )}
-              </div>
-            </Field>
-          )}
-        </dl>
-      </div>
-
-      <div className="mt-6 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-muted-foreground">
-            {freePractice
-              ? "Keep it up."
-              : both
-                ? "Nicely done — I'll bring this back further out."
-                : none
-                  ? "That's fine — we'll return to it soon."
-                  : "Making progress — I'll show this again shortly."}
+            {card.simplified}
           </div>
-          <button
-            type="button"
-            onClick={onRedo}
-            className="shrink-0 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-            title="Re-do this card from the start"
-          >
-            ← Redo
-          </button>
         </div>
         <button
-          onClick={onNext}
-          className="shrink-0 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+          onClick={() =>
+            playChinese({ text: card.simplified, audioUrl: card.audio_url, rate: audioSpeed })
+          }
+          className="rounded-md border border-border bg-background p-2 text-muted-foreground hover:text-foreground"
+          aria-label="Replay audio"
         >
-          Next card →
+          <Volume2 className="h-5 w-5" />
         </button>
       </div>
+
+      <dl className="mt-8 space-y-4 text-sm">
+        <Field label="Pinyin">
+          <span className="font-serif text-lg italic text-cinnabar">{card.pinyin}</span>
+        </Field>
+        <Field label="Meaning">
+          <span className="font-serif text-lg text-foreground">{card.english_meaning}</span>
+        </Field>
+        {card.part_of_speech && <Field label="Part of speech">{card.part_of_speech}</Field>}
+        {card.example_sentence && (
+          <Field label="Example">
+            <div className="space-y-1">
+              <div className="font-cjk text-base text-foreground">{card.example_sentence}</div>
+              {card.example_translation && (
+                <div className="text-muted-foreground">{card.example_translation}</div>
+              )}
+            </div>
+          </Field>
+        )}
+      </dl>
     </div>
   );
 }
