@@ -18,9 +18,14 @@ export function AudioButton({ text, audioUrl, rate, label, size = "md", classNam
 
   async function onPlay() {
     setPlaying(true);
-    const result = await playChinese({ text, audioUrl, rate });
+    const result = await playChinese({
+      text,
+      audioUrl,
+      rate,
+      onEnded: () => setPlaying(false),
+    });
     setMode(result);
-    setTimeout(() => setPlaying(false), 400);
+    if (result === "unavailable") setPlaying(false);
   }
 
   return (

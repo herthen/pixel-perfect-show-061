@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -53,6 +53,7 @@ const DEFAULT_EF = 2.5;
 
 function StudyPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { mode } = Route.useSearch();
   const freePractice = mode === "free";
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -309,12 +310,16 @@ function StudyPage() {
       {/* Scrollable content — pb-28 keeps cards above the fixed action bar */}
       <div className={`mx-auto max-w-2xl ${hasActionBar ? "pb-28" : ""}`}>
         <div className="flex items-center justify-between">
-          <Link
-            to="/dashboard"
+          <button
+            type="button"
+            onClick={() => {
+              if (hasActionBar && !window.confirm("Leave this session? Your progress on the current card will be lost.")) return;
+              navigate({ to: "/dashboard" });
+            }}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" /> Back
-          </Link>
+          </button>
           {progress && (
             <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
               Card {progress.current} of {progress.total}

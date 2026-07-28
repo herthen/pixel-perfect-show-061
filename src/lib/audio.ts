@@ -20,22 +20,27 @@ export interface PlayOptions {
   audioUrl?: string | null;
   text: string;
   rate?: number; // default 0.85
+  onEnded?: () => void;
 }
 
 export type PlayResult = "audio" | "tts" | "unavailable";
 
-export async function playChinese({ audioUrl, text, rate = 0.85 }: PlayOptions): Promise<PlayResult> {
+export async function playChinese({ audioUrl, text, rate = 0.85, onEnded }: PlayOptions): Promise<PlayResult> {
   if (audioUrl) {
     try {
       const audio = new Audio(audioUrl);
       audio.playbackRate = rate;
+      if (onEnded) audio.addEventListener("ended", onEnded, { once: true });
       await audio.play();
       return "audio";
     } catch {
       /* fall through to TTS */
     }
   }
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return "unavailable";
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    onEnded?.();
+    return "unavailable";
+  }
   try {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
@@ -43,9 +48,11 @@ export async function playChinese({ audioUrl, text, rate = 0.85 }: PlayOptions):
     u.rate = rate;
     const voice = pickZhVoice();
     if (voice) u.voice = voice;
+    if (onEnded) u.onend = onEnded;
     window.speechSynthesis.speak(u);
     return "tts";
   } catch {
+    onEnded?.();
     return "unavailable";
   }
 }

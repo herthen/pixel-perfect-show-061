@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Volume2 } from "lucide-react";
 import { settingsQuery, listsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
+import { playChinese } from "@/lib/audio";
 import {
   type CharSize,
   CHAR_SIZES,
@@ -125,6 +127,15 @@ function SettingsPage() {
               <div className="w-14 rounded-md border border-border bg-background px-2 py-1 text-center font-serif text-lg">
                 {speed.toFixed(2)}×
               </div>
+              <button
+                type="button"
+                onClick={() => playChinese({ text: "你好", rate: speed })}
+                title="Preview at current speed"
+                className="flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Volume2 className="h-3.5 w-3.5" />
+                Test
+              </button>
             </div>
           </label>
         </div>
