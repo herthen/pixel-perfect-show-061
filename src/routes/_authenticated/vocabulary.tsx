@@ -119,7 +119,7 @@ function VocabularyPage() {
         <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Library</p>
         <h1 className="mt-2 font-serif text-4xl">Vocabulary</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {words.length} words available · HSK 1 curated.
+          {words.length} words available
         </p>
       </div>
 

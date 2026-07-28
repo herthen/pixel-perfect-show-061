@@ -68,8 +68,8 @@ function Landing() {
               d: "An SM-2-inspired schedule brings each word back just before you'd forget.",
             },
             {
-              t: "Built on HSK 1",
-              d: "150 curated everyday words to begin. Add your own lists any time.",
+              t: "Built on HSK 1 & 2",
+              d: "300 curated words across two levels. Start with HSK 1 basics, then advance to HSK 2.",
             },
           ].map((f) => (
             <div key={f.t}>

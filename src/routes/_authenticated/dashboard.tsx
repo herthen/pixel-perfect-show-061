@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { GraduationCap, BookText, Flame, ArrowRight, Sparkles } from "lucide-react";
-import { settingsQuery, sessionsQuery, progressQuery, computeStreak } from "@/lib/queries";
+import { settingsQuery, sessionsQuery, progressQuery, wordsQuery, computeStreak } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -9,6 +9,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
     context.queryClient.ensureQueryData(settingsQuery());
     context.queryClient.ensureQueryData(sessionsQuery());
     context.queryClient.ensureQueryData(progressQuery());
+    context.queryClient.ensureQueryData(wordsQuery());
   },
   component: Dashboard,
 });
@@ -17,6 +18,7 @@ function Dashboard() {
   const { data: settings } = useSuspenseQuery(settingsQuery());
   const { data: sessions } = useSuspenseQuery(sessionsQuery());
   const { data: progress } = useSuspenseQuery(progressQuery());
+  const { data: words } = useSuspenseQuery(wordsQuery());
   const navigate = useNavigate();
 
   const target = settings?.daily_new_word_target ?? 5;
@@ -103,7 +105,7 @@ function Dashboard() {
           <LibCell label="Learning" value={learningCount} tone="amber" />
           <LibCell label="In review" value={reviewCount} tone="ink" />
           <LibCell label="Mastered" value={masteredCount} tone="moss" />
-          <LibCell label="Unmet" value={Math.max(0, 150 - progress.length)} tone="muted" />
+          <LibCell label="Unmet" value={Math.max(0, words.length - progress.length)} tone="muted" />
         </div>
 
         <Link
