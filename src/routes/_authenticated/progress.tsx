@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   progressQuery,
   sessionsQuery,
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/_authenticated/progress")({
 function ProgressPage() {
   const { data: progress } = useSuspenseQuery(progressQuery());
   const { data: sessions } = useSuspenseQuery(sessionsQuery());
+  const [hovered, setHovered] = useState<number | null>(null);
 
   const totals = useMemo(() => {
     const now = new Date().toISOString();
@@ -52,6 +53,8 @@ function ProgressPage() {
   const totalCorrect = sessions.reduce((s, x) => s + (x.correct_count ?? 0), 0);
   const accuracy = totalReviews ? Math.round((totalCorrect / totalReviews) * 100) : 0;
 
+  const axisIndices = [0, 7, 14, 21, 29];
+
   return (
     <div className="mx-auto max-w-4xl">
       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Your practice</p>
@@ -71,32 +74,68 @@ function ProgressPage() {
             {last30.filter((d) => d.count > 0).length} active days
           </div>
         </div>
-        <div className="mt-5 flex h-32 items-end gap-1">
-          {last30.map((d) => (
-            <div
-              key={d.date}
-              className="group relative flex-1"
-              title={`${d.date}: ${d.count} cards`}
-            >
-              <div
-                className="w-full rounded-sm bg-cinnabar/70 transition-colors hover:bg-cinnabar"
-                style={{ height: `${(d.count / max) * 100}%`, minHeight: d.count > 0 ? 4 : 1 }}
-              />
-              {d.count === 0 && (
-                <div className="absolute bottom-0 h-[1px] w-full bg-border" />
-              )}
+
+        <div className="relative mt-6">
+          {/* Bar chart */}
+          <div className="relative flex h-52 items-end gap-px">
+            {/* Horizontal gridlines */}
+            <div className="pointer-events-none absolute inset-0">
+              {[0.25, 0.5, 0.75].map((pct) => (
+                <div
+                  key={pct}
+                  className="absolute w-full border-t border-border/40 [bottom:var(--gridline-pos)]"
+                  style={{ "--gridline-pos": `${pct * 100}%` } as React.CSSProperties}
+                />
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
-          <span>{last30[0].date.slice(5)}</span>
-          <span>{last30[last30.length - 1].date.slice(5)}</span>
+
+            {last30.map((d, i) => (
+              <div
+                key={d.date}
+                className="group relative flex h-full flex-1 cursor-default flex-col justify-end"
+                onMouseEnter={() => setHovered(i)}
+                onMouseLeave={() => setHovered(null)}
+              >
+                {/* Tooltip */}
+                {hovered === i && (
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1.5 text-center shadow-md">
+                    <div className="text-[10px] text-muted-foreground">{d.date.slice(5).replace("-", "/")}</div>
+                    <div className="mt-0.5 text-sm font-medium text-foreground">
+                      {d.count} {d.count === 1 ? "card" : "cards"}
+                    </div>
+                  </div>
+                )}
+
+                {d.count > 0 ? (
+                  <div
+                    className="w-full rounded-t-sm bg-cinnabar/60 transition-colors group-hover:bg-cinnabar [height:var(--bar-h)]"
+                    style={{ "--bar-h": `${Math.max((d.count / max) * 100, 3)}%` } as React.CSSProperties}
+                  />
+                ) : (
+                  <div className="h-[3px] w-full rounded-sm bg-border/50" />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* X-axis labels */}
+          <div className="relative mt-2 h-4 text-[10px] text-muted-foreground">
+            {axisIndices.map((i) => (
+              <span
+                key={i}
+                className="absolute -translate-x-1/2 [left:var(--label-left)]"
+                style={{ "--label-left": `${(i / 29) * 100}%` } as React.CSSProperties}
+              >
+                {last30[i].date.slice(5).replace("-", "/")}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
       <section className="mt-8 rounded-lg border border-border bg-surface p-6">
         <h2 className="font-serif text-lg">Library composition</h2>
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-4">
           <Bar label="Learning" value={totals.learning} total={totals.total} tone="amber" />
           <Bar label="In review" value={totals.review} total={totals.total} tone="ink" />
           <Bar label="Mastered" value={totals.mastered} total={totals.total} tone="moss" />
